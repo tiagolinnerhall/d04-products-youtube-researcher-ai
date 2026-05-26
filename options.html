@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>YouTube Researcher AI Options</title>
+    <style>
+      body {
+        font: 14px/1.45 Arial, sans-serif;
+        margin: 16px;
+        width: 360px;
+      }
+
+      h2 {
+        font-size: 15px;
+        margin: 16px 0 8px;
+      }
+
+      label,
+      input,
+      select,
+      button {
+        box-sizing: border-box;
+        display: block;
+        width: 100%;
+      }
+
+      input,
+      select {
+        margin: 6px 0 12px;
+        padding: 8px;
+      }
+
+      button {
+        background: #065fd4;
+        border: 0;
+        border-radius: 6px;
+        color: #fff;
+        cursor: pointer;
+        margin-top: 8px;
+        padding: 9px 12px;
+      }
+
+      #clear {
+        background: #111;
+      }
+
+      #status {
+        color: #137333;
+        min-height: 18px;
+        margin-top: 10px;
+      }
+
+      .note {
+        color: #555;
+        font-size: 12px;
+        margin: 0 0 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Chat Model</h2>
+    <p class="note">Transcripts and questions are sent only to the API endpoint you save. Keys stay in this extension.</p>
+    <label for="chatApiUrl">API endpoint</label>
+    <input id="chatApiUrl" type="url" value="https://api.deepseek.com/chat/completions">
+
+    <label for="chatProvider">Provider type</label>
+    <select id="chatProvider">
+      <option value="openai-compatible">OpenAI-compatible</option>
+      <option value="anthropic">Anthropic Claude direct</option>
+    </select>
+
+    <label for="chatApiKey">API key</label>
+    <input id="chatApiKey" type="password" autocomplete="off" placeholder="sk-...">
+
+    <label for="chatModel">Model</label>
+    <select id="chatModel">
+      <option value="deepseek-chat">DeepSeek Chat</option>
+      <option value="deepseek-reasoner">DeepSeek Reasoner</option>
+      <option value="gpt-4.1-mini">GPT-4.1 Mini</option>
+      <option value="gpt-4o-mini">GPT-4o Mini</option>
+      <option value="openrouter/auto">OpenRouter Auto</option>
+      <option value="anthropic/claude-3.5-sonnet">Claude via OpenRouter</option>
+      <option value="claude-3-5-haiku-latest">Claude Haiku direct</option>
+      <option value="claude-sonnet-4-5">Claude Sonnet direct</option>
+      <option value="grok-3-mini">Grok 3 Mini</option>
+      <option value="llama3.1">Local Llama</option>
+      <option value="qwen2.5">Local Qwen</option>
+      <option value="custom">Custom</option>
+    </select>
+    <input id="customChatModel" type="text" placeholder="custom model name or VPS model">
+    <p class="note">Use HTTPS for a VPS endpoint. Local HTTP is allowed only for localhost / 127.0.0.1.</p>
+
+    <h2>Voice</h2>
+    <label for="elevenLabsApiKey">ElevenLabs API key</label>
+    <input id="elevenLabsApiKey" type="password" autocomplete="off" placeholder="xi-api-key">
+
+    <label for="englishVoice">English narration voice</label>
+    <select id="englishVoice">
+      <option value="21m00Tcm4TlvDq8ikWAM">Rachel - clear narration</option>
+      <option value="pNInz6obpgDQGcFmaJgB">Adam - deep narration</option>
+      <option value="ErXwobaYiN019PkySvjV">Antoni - warm narration</option>
+      <option value="EXAVITQu4vr4xnSDxMaL">Bella - soft narration</option>
+      <option value="custom">Custom</option>
+    </select>
+    <input id="customEnglishVoice" type="text" placeholder="custom English voice ID">
+
+    <label for="portugueseVoice">Portuguese narration voice</label>
+    <select id="portugueseVoice">
+      <option value="ErXwobaYiN019PkySvjV">Antoni - PT/BR multilingual</option>
+      <option value="21m00Tcm4TlvDq8ikWAM">Rachel - PT/BR multilingual</option>
+      <option value="pNInz6obpgDQGcFmaJgB">Adam - PT/BR deep</option>
+      <option value="EXAVITQu4vr4xnSDxMaL">Bella - PT/BR soft</option>
+      <option value="custom">Custom</option>
+    </select>
+    <input id="customPortugueseVoice" type="text" placeholder="custom Portuguese voice ID">
+
+    <button id="save" type="button">Save</button>
+    <button id="clear" type="button">Clear keys</button>
+    <div id="status"></div>
+    <script src="options.js"></script>
+  </body>
+</html>
