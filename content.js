@@ -2425,8 +2425,20 @@
     }, config);
   }
 
-  async function collectSearchResults(query, limit = SEARCH_RESULT_LIMIT) {
-      const response = await fetch(`/results?search_query=${encodeURIComponent(query)}&sp=CAMSAhAB`, {
+  function searchSpForFilters(filters = getFinderFilters()) {
+    const days = filters.days === 'today' ? 1 : Number(filters.days || 0);
+    if (!Number.isFinite(days) || days <= 0) return 'CAMSAhAB';
+    if (days <= 1) return 'EgIIAg==';
+    if (days <= 7) return 'EgIIAw==';
+    if (days <= 31) return 'EgIIBA==';
+    return 'EgIIBQ==';
+  }
+
+  async function collectSearchResults(query, limit = SEARCH_RESULT_LIMIT, filters = getFinderFilters()) {
+    const url = new URL('/results', location.origin);
+    url.searchParams.set('search_query', query);
+    url.searchParams.set('sp', searchSpForFilters(filters));
+    const response = await fetch(url.toString(), {
       credentials: 'include',
     });
     if (!response.ok) throw new Error('YouTube search could not be loaded.');
@@ -2484,7 +2496,7 @@
       .toLowerCase()
       .replace(/[^a-z0-9\s]/g, ' ')
       .split(/\s+/)
-      .filter((word) => word.length > 2 && !['the', 'and', 'for', 'with', 'how', 'best', 'video', 'videos'].includes(word));
+      .filter((word) => word.length > 1 && !['the', 'and', 'for', 'with', 'how', 'best', 'video', 'videos'].includes(word));
   }
 
   function boundedScore(value, max) {
@@ -2517,29 +2529,22 @@
     if (!text) return Infinity;
     if (/today|just now|agora|hoje/.test(text)) return 0;
     if (/yesterday|ontem/.test(text)) return 1;
-    const match = text.match(/(\d+(?:\.\d+)?)\s*(seconds?|secs?|minutes?|mins?|hours?|hrs?|days?|weeks?|months?|years?|s|m|h|d|w|mo|yr|yrs|segundos?|minutos?|horas?|dias?|semanas?|m[eê]ses?|anos?)/);
+    const match = text.match(/(\d+(?:\.\d+)?)\s*(seconds?|secs?|minutes?|mins?|hours?|hrs?|days?|weeks?|months?|years?|s|m|h|d|w|mo|yr|yrs|segundos?|minutos?|horas?|dias?|semanas?|m[eê]ses?|anos?|tunn(?:in|ia)?|päiv(?:ä|ää|än)?|viikko(?:a)?|kuukau(?:si|tta)|vuos(?:i|ia)?)/);
     if (!match) return Infinity;
     const value = Number(match[1]) || 0;
     const unit = match[2];
     if (/^(s|seconds?|secs?|segundos?)$/.test(unit)) return value / 86400;
     if (/^(m|minutes?|mins?|minutos?)$/.test(unit)) return value / 1440;
     if (/^(h|hours?|hrs?|horas?)$/.test(unit)) return value / 24;
-    if (/^(d|days?|dias?)$/.test(unit)) return value;
-    if (/^(w|weeks?|semanas?)$/.test(unit)) return value * 7;
-    if (/^(mo|months?|m[eê]ses?)$/.test(unit)) return value * 31;
-    if (/^(yr|yrs|years?|anos?)$/.test(unit)) return value * 365;
+    if (/^(d|days?|dias?|päiv(?:ä|ää|än)?)$/.test(unit)) return value;
+    if (/^(w|weeks?|semanas?|viikko(?:a)?)$/.test(unit)) return value * 7;
+    if (/^(mo|months?|m[eê]ses?|kuukau(?:si|tta))$/.test(unit)) return value * 31;
+    if (/^(yr|yrs|years?|anos?|vuos(?:i|ia)?)$/.test(unit)) return value * 365;
     return Infinity;
   }
 
   function activeDateSearchQuery(query, filters = getFinderFilters()) {
-    const days = filters.days === 'today' ? 1 : Number(filters.days || 0);
-    if (!Number.isFinite(days) || days <= 0) return query;
-    const after = new Date();
-    after.setDate(after.getDate() - days);
-    const yyyy = after.getFullYear();
-    const mm = String(after.getMonth() + 1).padStart(2, '0');
-    const dd = String(after.getDate()).padStart(2, '0');
-    return `${query} after:${yyyy}-${mm}-${dd}`;
+    return query;
   }
 
   function getFinderFilters() {
@@ -2558,10 +2563,13 @@
       : filters.days === 'today'
         ? 1
         : Number(filters.days);
+    const hasServerDateFilter = searchSpForFilters(filters) !== 'CAMSAhAB';
     let filtered = [...results].filter((video) => {
       const viewsOk = parseViewCount(video.views) >= filters.minViews;
       const age = publishedAgeDays(video.published);
-      const ageOk = maxDays === Infinity || (filters.days === 'today' ? age < 1 : age <= maxDays);
+      const ageOk = maxDays === Infinity
+        || (hasServerDateFilter && age === Infinity)
+        || (filters.days === 'today' ? age < 1 : age <= maxDays);
       return viewsOk && ageOk;
     });
 
@@ -2673,6 +2681,16 @@
 
   function fallbackResearchQueries(topic) {
     const cleaned = String(topic || '').trim();
+    if (/^[a-z0-9]{1,4}$/i.test(cleaned)) {
+      return [
+        cleaned,
+        `${cleaned} news`,
+        `${cleaned} tools`,
+        `${cleaned} tutorial`,
+        `${cleaned} explained`,
+        `${cleaned} update`,
+      ].filter(Boolean);
+    }
     return [
       cleaned,
       `${cleaned} science based`,
@@ -2717,7 +2735,7 @@
     for (const query of queries) {
       setStatus(`Researching YouTube: ${query}`);
       const filteredQuery = activeDateSearchQuery(query, filters);
-      const results = await collectSearchResults(filteredQuery, SEARCH_CANDIDATE_LIMIT).catch(() => []);
+      const results = await collectSearchResults(filteredQuery, SEARCH_CANDIDATE_LIMIT, filters).catch(() => []);
       for (const video of results) {
         if (!byId.has(video.videoId)) byId.set(video.videoId, { ...video, researchQuery: query });
       }
@@ -3097,7 +3115,7 @@
       setBusy(true);
       setStatus('Searching YouTube videos...');
       const filters = getFinderFilters();
-      const found = await collectSearchResults(activeDateSearchQuery(query, filters), SEARCH_CANDIDATE_LIMIT);
+      const found = await collectSearchResults(activeDateSearchQuery(query, filters), SEARCH_CANDIDATE_LIMIT, filters);
       if (requestToken !== activeRequestToken) return;
       lastFinderResults = found;
       lastFinderMode = 'search';
