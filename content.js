@@ -197,6 +197,20 @@
     return currentArchive;
   }
 
+  async function loadAllVideoArchives() {
+    const stored = await chrome.storage.local.get(null);
+    return Object.entries(stored)
+      .filter(([key, value]) => (
+        key.startsWith(ARCHIVE_PREFIX)
+        && value?.version === ARCHIVE_VERSION
+        && value.videoId
+        && Array.isArray(value.entries)
+        && value.entries.length
+      ))
+      .map(([, archive]) => archive)
+      .sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
+  }
+
   async function saveArchive(archive, video = getActiveVideo()) {
     if (!archive?.videoId) return;
     archive.updatedAt = Date.now();
@@ -2095,6 +2109,7 @@
   async function showArchive() {
     const video = getActiveVideo();
     const archive = video?.videoId ? await loadArchive(video.videoId, video) : createArchive('', video);
+    const allVideoArchives = await loadAllVideoArchives();
     const researchArchive = await loadResearchArchive();
     const output = ensurePanel().querySelector('.yt-va-output');
     if (!output.querySelector('.yt-va-archive-view')) {
@@ -2133,6 +2148,9 @@
       });
       section.append(deleteButton);
     }
+    const currentTitle = document.createElement('h4');
+    currentTitle.textContent = 'Current Video';
+    section.append(currentTitle);
     if (!archive.entries.length) {
       const empty = document.createElement('p');
       empty.className = 'yt-va-archive-empty';
@@ -2159,6 +2177,48 @@
         if (!isTrustedUserEvent(event)) return;
         output.textContent = '';
         appendOutput(entry.title || entry.kind, entry.text || '', { exportable: true });
+      });
+      section.append(item);
+    }
+    const allHeading = document.createElement('h3');
+    allHeading.textContent = 'All Video History';
+    section.append(allHeading);
+    const otherArchives = allVideoArchives.filter((item) => item.videoId !== archive.videoId);
+    if (!otherArchives.length) {
+      const empty = document.createElement('p');
+      empty.className = 'yt-va-archive-empty';
+      empty.textContent = archive.entries.length
+        ? 'No other saved videos yet.'
+        : 'No saved video summaries or answers yet.';
+      section.append(empty);
+    }
+    for (const savedArchive of otherArchives) {
+      const latest = [...savedArchive.entries].sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))[0];
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'yt-va-archive-item';
+      const type = document.createElement('span');
+      type.className = 'yt-va-archive-type';
+      type.textContent = `${savedArchive.entries.length} saved item${savedArchive.entries.length === 1 ? '' : 's'}`;
+      const title = document.createElement('strong');
+      title.textContent = savedArchive.title || 'Saved YouTube video';
+      const preview = document.createElement('p');
+      preview.textContent = String(latest?.text || '').replace(/\s+/g, ' ').slice(0, 180);
+      const time = document.createElement('small');
+      time.textContent = [formatArchiveTime(savedArchive.updatedAt || latest?.createdAt), savedArchive.url].filter(Boolean).join(' • ');
+      item.append(type, title, preview, time);
+      item.addEventListener('click', (event) => {
+        if (!isTrustedUserEvent(event)) return;
+        output.textContent = '';
+        appendOutput(savedArchive.title || 'Saved Video History', savedArchive.entries
+          .slice()
+          .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
+          .map((entry) => [
+            `✦ ${entry.title || entry.kind || 'Saved item'}`,
+            formatArchiveTime(entry.createdAt),
+            entry.text || '',
+          ].filter(Boolean).join('\n'))
+          .join('\n\n'), { exportable: true });
       });
       section.append(item);
     }
@@ -2197,7 +2257,8 @@
     }
     output.append(section);
     output.scrollTop = 0;
-    setStatus(`Archive: ${archive.entries.length} video item${archive.entries.length === 1 ? '' : 's'}, ${researchArchive.length} research item${researchArchive.length === 1 ? '' : 's'}.`);
+    const videoItemCount = allVideoArchives.reduce((total, item) => total + item.entries.length, 0);
+    setStatus(`Archive: ${videoItemCount} video item${videoItemCount === 1 ? '' : 's'} across ${allVideoArchives.length} video${allVideoArchives.length === 1 ? '' : 's'}, ${researchArchive.length} research item${researchArchive.length === 1 ? '' : 's'}.`);
   }
 
   function base64ToBlob(base64, mimeType) {
