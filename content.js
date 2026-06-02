@@ -1404,10 +1404,12 @@
       toggleResults();
     });
     for (const filter of [dateFilter, viewFilter, sortSelect]) {
-      filter.addEventListener('change', (event) => {
+      const refilter = (event) => {
         if (!isTrustedUserEvent(event)) return;
         applyFinderFilters();
-      });
+      };
+      filter.addEventListener('input', refilter);
+      filter.addEventListener('change', refilter);
     }
 
     return panel;
@@ -2491,6 +2493,19 @@
     return [...results].sort((a, b) => parseViewCount(b.views) - parseViewCount(a.views));
   }
 
+  function sortByNewest(results) {
+    return [...results].sort((a, b) => {
+      const aAge = publishedAgeDays(a.published);
+      const bAge = publishedAgeDays(b.published);
+      const aKnown = Number.isFinite(aAge);
+      const bKnown = Number.isFinite(bAge);
+      if (aKnown && !bKnown) return -1;
+      if (!aKnown && bKnown) return 1;
+      if (aKnown && bKnown && aAge !== bAge) return aAge - bAge;
+      return parseViewCount(b.views) - parseViewCount(a.views);
+    });
+  }
+
   function tokenizeQuery(text) {
     return String(text || '')
       .toLowerCase()
@@ -2574,7 +2589,7 @@
     });
 
     if (filters.sortBy === 'newest') {
-      filtered.sort((a, b) => publishedAgeDays(a.published) - publishedAgeDays(b.published));
+      filtered = sortByNewest(filtered);
     } else if (filters.sortBy === 'best') {
       filtered = rankResearchResults(filtered, topic);
     } else {
@@ -3041,6 +3056,12 @@
   function renderSearchResults(resultsBox, results) {
     resultsBox.textContent = '';
     lastRenderedResults = results.slice(0, SEARCH_RESULT_LIMIT);
+    const filters = getFinderFilters();
+    const rankLabel = filters.sortBy === 'newest'
+      ? 'Ranked by newest'
+      : filters.sortBy === 'best'
+        ? 'Ranked by research quality'
+        : 'Ranked by popularity';
     if (!lastRenderedResults.length) {
       const empty = document.createElement('div');
       empty.className = 'yt-va-empty-results';
@@ -3076,7 +3097,7 @@
       const reason = document.createElement('em');
       reason.textContent = [
         video.rankingScore ? `Quality ${video.rankingScore}/100` : '',
-        video.rankingReason || (video.researchQuery ? `Found via: ${video.researchQuery}` : 'Ranked by popularity'),
+        video.rankingReason || (video.researchQuery ? `Found via: ${video.researchQuery}` : rankLabel),
       ].filter(Boolean).join(' • ');
       meta.append(checkLabel, rank, title, details, reason);
       const actions = document.createElement('div');
