@@ -207,9 +207,11 @@ async function saveSettingsFromPage(settings) {
 function endpointOriginPattern(urlText) {
   try {
     const url = new URL(urlText);
-    const isLoopback = ['localhost', '127.0.0.1', '[::1]', '::1'].includes(url.hostname);
-    if (url.protocol !== 'https:' && !(url.protocol === 'http:' && isLoopback)) return '';
-    return `${url.origin}/*`;
+    const host = url.hostname === '::1' ? '[::1]' : url.hostname;
+    const isLoopback = ['localhost', '127.0.0.1', '[::1]', '::1'].includes(host);
+    if (url.protocol === 'http:' && isLoopback) return `http://${host}/*`;
+    if (url.protocol !== 'https:') return '';
+    return `https://${host}/*`;
   } catch (_error) {
     return '';
   }
@@ -233,11 +235,15 @@ async function hasEndpointPermission(urlText) {
 
 async function requestEndpointPermission(urlText) {
   const origin = endpointOriginPattern(urlText);
-  if (!origin) return { ok: false, error: 'Use an https API endpoint.' };
+  if (!origin) return { ok: false, error: 'Use an https API endpoint, or local http://localhost / 127.0.0.1.' };
   const alreadyGranted = await chrome.permissions.contains({ origins: [origin] });
   if (alreadyGranted) return { ok: true };
-  const granted = await chrome.permissions.request({ origins: [origin] });
-  return granted ? { ok: true } : { ok: false, error: `Chrome permission was not granted for ${origin}` };
+  try {
+    const granted = await chrome.permissions.request({ origins: [origin] });
+    return granted ? { ok: true } : { ok: false, error: `Chrome permission was not granted for ${origin}` };
+  } catch (_error) {
+    return { ok: false, error: 'Open key settings and click Save to approve endpoint access.' };
+  }
 }
 
 async function fetchWithTimeout(url, options, timeoutMs) {
