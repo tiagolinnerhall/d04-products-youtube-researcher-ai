@@ -52,9 +52,15 @@ function requestEndpointPermissions(urls) {
   }
   const origins = Array.from(new Set(patterns));
   return new Promise((resolve) => {
-    chrome.permissions.request({ origins }, (granted) => {
-      const error = chrome.runtime.lastError?.message || '';
-      resolve(granted ? { ok: true } : { ok: false, error: error || `Chrome permission was not granted for ${origins.join(', ')}` });
+    chrome.permissions.contains({ origins }, (alreadyGranted) => {
+      if (alreadyGranted) {
+        resolve({ ok: true });
+        return;
+      }
+      chrome.permissions.request({ origins }, (granted) => {
+        const error = chrome.runtime.lastError?.message || '';
+        resolve(granted ? { ok: true } : { ok: false, error: error || `Chrome permission was not granted for ${origins.join(', ')}` });
+      });
     });
   });
 }
