@@ -10,6 +10,13 @@ const DEFAULT_CHAT_API_URL = 'https://api.deepseek.com/chat/completions';
 const ELEVENLABS_API_URL = 'https://api.elevenlabs.io/v1/text-to-speech';
 const LICENSE_VALIDATE_URL = '';
 const LICENSE_RESTORE_URL = '';
+const LOCAL_OPEN_SOURCE_LICENSE = {
+  licenseKey: 'OPEN-SOURCE-PERPETUAL',
+  status: 'active',
+  email: 'local open-source build',
+  trialEndsAt: '',
+  currentPeriodEnd: '',
+};
 const DEFAULT_MODEL = 'deepseek-chat';
 const DEFAULT_CHAT_PROVIDER = 'openai-compatible';
 const DEFAULT_ENGLISH_VOICE_ID = '21m00Tcm4TlvDq8ikWAM';
@@ -79,7 +86,13 @@ async function getInstallId(providedInstallId = '') {
 }
 
 async function validateLicenseWithServer(licenseKey, providedInstallId = '') {
-  const finalKey = String(licenseKey || '').trim().toUpperCase();
+  const finalKey = String(licenseKey || '').trim();
+  if (!LICENSE_VALIDATE_URL) {
+    return saveLicenseFromCheckout({
+      ...LOCAL_OPEN_SOURCE_LICENSE,
+      licenseKey: LOCAL_OPEN_SOURCE_LICENSE.licenseKey,
+    });
+  }
   if (!finalKey) throw new Error('Paste a license key first.');
   const installId = await getInstallId(providedInstallId);
   const response = await fetchWithTimeout(LICENSE_VALIDATE_URL, {
@@ -116,7 +129,7 @@ async function validateLicenseWithServer(licenseKey, providedInstallId = '') {
 }
 
 async function saveLicenseFromCheckout(license) {
-  const finalKey = String(license?.licenseKey || '').trim().toUpperCase();
+  const finalKey = String(license?.licenseKey || '').trim();
   if (!finalKey) throw new Error('Checkout did not return a license key.');
   await chrome.storage.local.set({
     ytVaLicenseKey: finalKey,
@@ -138,6 +151,12 @@ async function saveLicenseFromCheckout(license) {
 
 async function restorePurchaseWithServer(email) {
   const finalEmail = String(email || '').trim().toLowerCase();
+  if (!LICENSE_RESTORE_URL) {
+    return saveLicenseFromCheckout({
+      ...LOCAL_OPEN_SOURCE_LICENSE,
+      email: finalEmail || LOCAL_OPEN_SOURCE_LICENSE.email,
+    });
+  }
   if (!finalEmail || !finalEmail.includes('@')) throw new Error('Enter an email address.');
   const installId = await getInstallId();
   const response = await fetchWithTimeout(LICENSE_RESTORE_URL, {

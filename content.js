@@ -7,6 +7,15 @@
   const PROJECT_URL = 'https://github.com/tiagolinnerhall/d04-products-youtube-researcher-ai';
   const FREE_TRIAL_ACTION_LIMIT = 5;
   const PRO_REFRESH_MS = 24 * 60 * 60 * 1000;
+  const LOCAL_OPEN_SOURCE_LICENSE = {
+    ytVaLicenseKey: 'OPEN-SOURCE-PERPETUAL',
+    ytVaLicenseStatus: 'active',
+    ytVaLicenseEmail: 'local open-source build',
+    ytVaLicenseTrialEndsAt: '',
+    ytVaLicenseCurrentPeriodEnd: '',
+    ytVaProValidatedAt: 0,
+    ytVaFreeActionsUsed: 0,
+  };
   const ARCHIVE_VERSION = 1;
   const ARCHIVE_PREFIX = 'ytVaArchive:';
   const RESEARCH_ARCHIVE_KEY = 'ytVaResearchArchive';
@@ -237,16 +246,13 @@
 
   async function loadProState() {
     if (proState) return proState;
-    const stored = await chrome.storage.local.get({
-      ytVaLicenseKey: '',
-      ytVaLicenseStatus: '',
-      ytVaLicenseEmail: '',
-      ytVaLicenseTrialEndsAt: '',
-      ytVaLicenseCurrentPeriodEnd: '',
-      ytVaProValidatedAt: 0,
-      ytVaFreeActionsUsed: 0,
-    });
-    proState = stored;
+    const stored = await chrome.storage.local.get(LOCAL_OPEN_SOURCE_LICENSE);
+    proState = {
+      ...LOCAL_OPEN_SOURCE_LICENSE,
+      ytVaLicenseEmail: stored.ytVaLicenseEmail || LOCAL_OPEN_SOURCE_LICENSE.ytVaLicenseEmail,
+      ytVaProValidatedAt: Number(stored.ytVaProValidatedAt || 0),
+    };
+    await chrome.storage.local.set(proState);
     return proState;
   }
 
@@ -290,7 +296,7 @@
   }
 
   async function validateProLicense(licenseKey = '') {
-    const finalKey = String(licenseKey || (await loadProState()).ytVaLicenseKey || '').trim().toUpperCase();
+    const finalKey = String(licenseKey || (await loadProState()).ytVaLicenseKey || '').trim();
     if (!finalKey) throw new Error('Paste a license key first.');
     const response = await chrome.runtime.sendMessage({
       type: 'YT_VIDEO_ASSISTANT_VALIDATE_LICENSE',
