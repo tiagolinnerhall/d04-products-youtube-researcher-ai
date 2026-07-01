@@ -46,16 +46,16 @@ async function getConfig() {
   });
 
   return {
-    chatApiUrl: String(stored.chatApiUrl || config.chatApiUrl || DEFAULT_CHAT_API_URL).trim(),
-    chatProvider: String(stored.chatProvider || config.chatProvider || inferProvider(stored.chatApiUrl || config.chatApiUrl || DEFAULT_CHAT_API_URL)).trim(),
-    chatApiKey: String(stored.chatApiKey || stored.deepseekApiKey || config.chatApiKey || config.deepseekApiKey || '').trim(),
-    chatModel: String(stored.chatModel || stored.model || config.model || DEFAULT_MODEL).trim() || DEFAULT_MODEL,
-    elevenLabsApiKey: String(stored.elevenLabsApiKey || config.elevenLabsApiKey || '').trim(),
+    chatApiUrl: String(config.chatApiUrl || stored.chatApiUrl || DEFAULT_CHAT_API_URL).trim(),
+    chatProvider: String(config.chatProvider || stored.chatProvider || inferProvider(config.chatApiUrl || stored.chatApiUrl || DEFAULT_CHAT_API_URL)).trim(),
+    chatApiKey: String(config.chatApiKey || config.deepseekApiKey || stored.chatApiKey || stored.deepseekApiKey || '').trim(),
+    chatModel: String(config.chatModel || config.model || stored.chatModel || stored.model || DEFAULT_MODEL).trim() || DEFAULT_MODEL,
+    elevenLabsApiKey: String(config.elevenLabsApiKey || stored.elevenLabsApiKey || '').trim(),
     englishVoiceId: String(
-      stored.elevenLabsEnglishVoiceId || config.elevenLabsEnglishVoiceId || DEFAULT_ENGLISH_VOICE_ID
+      config.elevenLabsEnglishVoiceId || stored.elevenLabsEnglishVoiceId || DEFAULT_ENGLISH_VOICE_ID
     ).trim(),
     portugueseVoiceId: String(
-      stored.elevenLabsPortugueseVoiceId || config.elevenLabsPortugueseVoiceId || DEFAULT_PORTUGUESE_VOICE_ID
+      config.elevenLabsPortugueseVoiceId || stored.elevenLabsPortugueseVoiceId || DEFAULT_PORTUGUESE_VOICE_ID
     ).trim(),
   };
 }
