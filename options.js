@@ -4,6 +4,14 @@ const DEFAULT_MODEL = 'deepseek-chat';
 const DEFAULT_ENGLISH_VOICE_ID = '21m00Tcm4TlvDq8ikWAM';
 const DEFAULT_PORTUGUESE_VOICE_ID = 'ErXwobaYiN019PkySvjV';
 
+try {
+  const params = new URLSearchParams(location.search);
+  if (params.get('reloadExtension') === '1') {
+    history.replaceState(null, '', location.pathname);
+    chrome.runtime.reload();
+  }
+} catch (_error) {}
+
 const chatApiUrlInput = document.getElementById('chatApiUrl');
 const chatProviderSelect = document.getElementById('chatProvider');
 const chatApiKeyInput = document.getElementById('chatApiKey');
