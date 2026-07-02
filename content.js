@@ -7,6 +7,11 @@
   const PROJECT_URL = 'https://github.com/tiagolinnerhall/d04-products-youtube-researcher-ai';
   const FREE_TRIAL_ACTION_LIMIT = 5;
   const PRO_REFRESH_MS = 24 * 60 * 60 * 1000;
+  const PROMPT_TRANSCRIPT_LIMITS = {
+    summary: 22000,
+    question: 18000,
+    extreme: 12000,
+  };
   const LOCAL_OPEN_SOURCE_LICENSE = {
     ytVaLicenseKey: 'OPEN-SOURCE-PERPETUAL',
     ytVaLicenseStatus: 'active',
@@ -373,13 +378,30 @@
     return Array.isArray(stored[RESEARCH_ARCHIVE_KEY]) ? stored[RESEARCH_ARCHIVE_KEY] : [];
   }
 
+  function promptTranscriptLimit(mode) {
+    return PROMPT_TRANSCRIPT_LIMITS[mode] || PROMPT_TRANSCRIPT_LIMITS.summary;
+  }
+
+  function sampleTranscript(transcript, maxChars) {
+    const text = String(transcript || '').replace(/\s+/g, ' ').trim();
+    if (text.length <= maxChars) return text;
+    const part = Math.floor(maxChars / 3);
+    const middleStart = Math.max(0, Math.floor(text.length / 2) - Math.floor(part / 2));
+    return [
+      text.slice(0, part),
+      text.slice(middleStart, middleStart + part),
+      text.slice(-part),
+    ].join('\n[...middle of transcript sampled to keep the API request responsive...]\n');
+  }
+
   function buildPrompt(payload) {
+    const transcript = sampleTranscript(payload.transcript, promptTranscriptLimit(payload.mode));
     const context = [
       `Title: ${payload.title || 'Unknown YouTube video'}`,
       `URL: ${payload.url || location.href}`,
       '',
       'Transcript:',
-      payload.transcript,
+      transcript,
     ].join('\n');
 
     if (payload.mode === 'extreme') {
@@ -2829,15 +2851,7 @@
   }
 
   function sampleTranscriptForResearch(transcript, maxChars = 9000) {
-    const text = String(transcript || '').replace(/\s+/g, ' ').trim();
-    if (text.length <= maxChars) return text;
-    const part = Math.floor(maxChars / 3);
-    const middleStart = Math.max(0, Math.floor(text.length / 2) - Math.floor(part / 2));
-    return [
-      text.slice(0, part),
-      text.slice(middleStart, middleStart + part),
-      text.slice(-part),
-    ].join('\n[...middle of transcript sampled...]\n');
+    return sampleTranscript(transcript, maxChars);
   }
 
   function describeRisk(score) {

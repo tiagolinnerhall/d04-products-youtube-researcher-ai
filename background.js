@@ -21,7 +21,7 @@ const DEFAULT_MODEL = 'deepseek-chat';
 const DEFAULT_CHAT_PROVIDER = 'openai-compatible';
 const DEFAULT_ENGLISH_VOICE_ID = '21m00Tcm4TlvDq8ikWAM';
 const DEFAULT_PORTUGUESE_VOICE_ID = 'ErXwobaYiN019PkySvjV';
-const CHAT_TIMEOUT_MS = 45_000;
+const CHAT_TIMEOUT_MS = 120_000;
 const TTS_TIMEOUT_MS = 60_000;
 const MAX_CHAT_RESPONSE_CHARS = 1_000_000;
 const MAX_AUDIO_BYTES = 12_000_000;
@@ -252,8 +252,14 @@ async function fetchWithTimeout(url, options, timeoutMs) {
   try {
     return await fetch(url, { ...options, signal: controller.signal });
   } catch (error) {
-    if (error?.name === 'AbortError') throw new Error('The API request timed out.');
-    throw new Error('The API request failed. Check the endpoint and network.');
+    if (error?.name === 'AbortError') {
+      const timeoutError = new Error('The API request timed out.');
+      timeoutError.code = 'API_TIMEOUT';
+      throw timeoutError;
+    }
+    const networkError = new Error('The API request failed. Check the endpoint and network.');
+    networkError.code = 'API_NETWORK';
+    throw networkError;
   } finally {
     clearTimeout(timer);
   }
@@ -262,15 +268,21 @@ async function fetchWithTimeout(url, options, timeoutMs) {
 async function fetchTextWithRetry(url, options, timeoutMs) {
   let lastError;
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const response = await fetchWithTimeout(url, options, timeoutMs);
-    const responseText = await response.text();
-    if (responseText.length > MAX_CHAT_RESPONSE_CHARS) {
-      throw new Error('The chat model response was too large.');
+    try {
+      const response = await fetchWithTimeout(url, options, timeoutMs);
+      const responseText = await response.text();
+      if (responseText.length > MAX_CHAT_RESPONSE_CHARS) {
+        throw new Error('The chat model response was too large.');
+      }
+      if (response.ok || response.status < 500 || attempt === 1) {
+        return { response, responseText };
+      }
+      lastError = new Error(`Temporary API error: ${response.status}`);
+    } catch (error) {
+      lastError = error;
+      if (error?.code !== 'API_TIMEOUT' || attempt === 1) throw error;
     }
-    if (response.ok || response.status < 500 || attempt === 1) {
-      return { response, responseText };
-    }
-    lastError = new Error(`Temporary API error: ${response.status}`);
+    await sleep(800);
   }
   throw lastError || new Error('The API request failed.');
 }
