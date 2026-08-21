@@ -209,7 +209,8 @@ function endpointOriginPattern(urlText) {
     const url = new URL(urlText);
     const host = url.hostname === '::1' ? '[::1]' : url.hostname;
     const isLoopback = ['localhost', '127.0.0.1', '[::1]', '::1'].includes(host);
-    if (url.protocol === 'http:' && isLoopback) return `http://${host}/*`;
+    const isPrivateProxy = url.hostname === '100.113.229.113' && url.port === '6202';
+    if (url.protocol === 'http:' && (isLoopback || isPrivateProxy)) return `${url.origin}/*`;
     if (url.protocol !== 'https:') return '';
     return `https://${host}/*`;
   } catch (_error) {
@@ -235,7 +236,7 @@ async function hasEndpointPermission(urlText) {
 
 async function requestEndpointPermission(urlText) {
   const origin = endpointOriginPattern(urlText);
-  if (!origin) return { ok: false, error: 'Use an https API endpoint, or local http://localhost / 127.0.0.1.' };
+  if (!origin) return { ok: false, error: 'Use an https API endpoint or the configured private proxy.' };
   const alreadyGranted = await chrome.permissions.contains({ origins: [origin] });
   if (alreadyGranted) return { ok: true };
   try {
